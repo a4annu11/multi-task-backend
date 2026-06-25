@@ -8,6 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { generateAccessToken } from "../utils/generateToken.js";
 import { verificationEmailTemplate } from "../templates/verificationEmail.template.js";
+import { UserProfile } from "../models/userProfile.model.js";
 
 export const signup = asyncHandler(async (req, res) => {
   const { username, email, password, phone } = req.body;
@@ -47,6 +48,7 @@ export const signup = asyncHandler(async (req, res) => {
   user.verifyCodeExpiry = Date.now() + 24 * 60 * 60 * 1000;
 
   await user.save({ validateBeforeSave: false });
+  await UserProfile.create({ userId: user._id });
 
   const createdUser = await User.findById(user._id).select(
     "-password -verifyCode -verifyCodeExpiry",
@@ -179,6 +181,19 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   await user.save({
     validateBeforeSave: false,
   });
+
+  // await UserProfile.findOneAndUpdate(
+  //   { userId: user._id },
+  //   {
+  //     $setOnInsert: {
+  //       userId: user._id,
+  //     },
+  //   },
+  //   {
+  //     upsert: true,
+  //     new: true,
+  //   },
+  // );
 
   return res
     .status(200)
