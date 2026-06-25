@@ -1,10 +1,10 @@
-import { Router } from "express";
+import exprees from "express";
 import { signin, signup, verifyEmail } from "../controllers/auth.controller.js";
 
-const router = Router();
+const router = exprees.Router();
 
-router.route("/signup").post(signup);
-router.route("/signin").post(signin);
-router.route("/verify-email").post(verifyEmail);
+router.post("/signup", signup);
+router.post("/signin", signin);
+router.post("/verify-email", verifyEmail);
 
 export default router;
