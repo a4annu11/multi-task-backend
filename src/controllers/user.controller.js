@@ -232,35 +232,57 @@ export const followUnfollowUser = asyncHandler(async (req, res) => {
     );
 });
 
-export const acceptFollowRequest = asyncHandler(async (req, res) => {
-  const requestId = req.params.requestId;
+export const handleAcceptRejectFollowRequest = asyncHandler(
+  async (req, res) => {
+    const { requestId } = req.params;
+    const { action } = req.body;
+    const currentUserId = req.user._id;
 
-  const follow = await Follow.findById(requestId);
+    if (!["accepted", "rejected"].includes(action)) {
+      throw new ApiError(400, "Invalid action");
+    }
 
-  if (!follow) {
-    throw new ApiError(404, "Follow request not found");
-  }
+    const follow = await Follow.findById(requestId);
 
-  if (follow.status !== "pending") {
-    throw new ApiError(400, "Request already processed");
-  }
+    if (!follow) {
+      throw new ApiError(404, "Follow request not found");
+    }
 
-  follow.status = "accepted";
-  follow.acceptedAt = new Date();
+    // Only the target user can accept/reject
+    if (follow.followingId.toString() !== currentUserId.toString()) {
+      throw new ApiError(403, "You are not authorized to perform this action");
+    }
 
-  await follow.save();
+    if (follow.status !== "pending") {
+      throw new ApiError(400, "Request already processed");
+    }
 
-  await UserProfile.updateOne(
-    { userId: follow.followerId },
-    { $inc: { followingCount: 1 } },
-  );
+    if (action === "accepted") {
+      follow.status = "accepted";
+      follow.acceptedAt = new Date();
 
-  await UserProfile.updateOne(
-    { userId: follow.followingId },
-    { $inc: { followerCount: 1 } },
-  );
+      await follow.save();
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Follow request accepted"));
-});
+      await UserProfile.updateOne(
+        { userId: follow.followerId },
+        { $inc: { followingCount: 1 } },
+      );
+
+      await UserProfile.updateOne(
+        { userId: follow.followingId },
+        { $inc: { followerCount: 1 } },
+      );
+
+      return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Follow request accepted"));
+    }
+
+    // Rejected
+    await Follow.findByIdAndDelete(requestId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Follow request rejected"));
+  },
+);
