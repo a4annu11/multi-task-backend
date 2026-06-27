@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 import { ApiError } from "./utils/ApiError.js";
 // Route imports
 import authRouter from "./routes/auth.routes.js";
+import userRouter from "./routes/user.routes.js";
+
 const app = express();
 
 app.use(
@@ -26,6 +28,7 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/user", userRouter);
 
 // Health check
 app.get("/health", (req, res) => {

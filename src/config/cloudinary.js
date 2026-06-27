@@ -7,22 +7,60 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
+const deleteLocalFile = async (localFilePath) => {
   try {
-    if (!localFilePath) return null;
-    
-    // Upload file on cloudinary
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      await fs.promises.unlink(localFilePath);
+    }
+  } catch (error) {
+    // ignore cleanup failures
+  }
+};
+
+const uploadOnCloudinary = async (localFilePath) => {
+  if (!localFilePath) return null;
+
+  try {
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
     });
-    
-    // File uploaded successfully
-    fs.unlinkSync(localFilePath); // Remove locally saved temporary file
+
     return response;
+  } finally {
+    await deleteLocalFile(localFilePath);
+  }
+};
+
+const uploadMedia = async (files) => {
+  if (!files) return null;
+
+  const fileList = Array.isArray(files) ? files : [files];
+  const uploaded = await Promise.all(
+    fileList.map(async (file) => {
+      if (!file?.path) return null;
+      const response = await uploadOnCloudinary(file.path);
+      if (!response) return null;
+      return {
+        url: response.secure_url || response.url,
+        publicId: response.public_id,
+      };
+    }),
+  );
+
+  const validUploads = uploaded.filter(Boolean);
+  return Array.isArray(files) ? validUploads : validUploads[0] || null;
+};
+
+const destroyMedia = async (publicId) => {
+  if (!publicId) return null;
+
+  try {
+    return await cloudinary.uploader.destroy(publicId, {
+      resource_type: "auto",
+    });
   } catch (error) {
-    fs.unlinkSync(localFilePath); // Remove locally saved temp file on fail
     return null;
   }
 };
 
-export { cloudinary, uploadOnCloudinary };
+export { cloudinary, uploadOnCloudinary, uploadMedia, destroyMedia };

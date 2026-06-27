@@ -10,24 +10,43 @@ const userProfileSchema = new mongoose.Schema(
     },
     fullName: {
       type: String,
+      default: "",
     },
     bio: {
       type: String,
+      default: "",
     },
     profileImage: {
-      type: String,
+      url: {
+        type: String,
+        default: "",
+      },
+      publicId: {
+        type: String,
+        default: "",
+      },
     },
     coverImage: {
-      type: String,
+      url: {
+        type: String,
+        default: "",
+      },
+      publicId: {
+        type: String,
+        default: "",
+      },
     },
     website: {
       type: String,
+      default: "",
     },
     location: {
       type: String,
+      default: "",
     },
     dob: {
       type: Date,
+      default: null,
     },
     isPrivate: {
       type: Boolean,
@@ -50,7 +69,9 @@ const userProfileSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export const UserProfile = mongoose.models.UserProfile || mongoose.model("UserProfile", userProfileSchema);
+export const UserProfile =
+  mongoose.models.UserProfile ||
+  mongoose.model("UserProfile", userProfileSchema);
