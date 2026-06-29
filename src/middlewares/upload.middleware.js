@@ -21,4 +21,6 @@ const profileUpload = upload.fields([
   { name: "coverImage", maxCount: 1 },
 ]);
 
-export { profileUpload };
+const postUpload = upload.array("media", 10); // Allow up to 10 images/videos for a post
+
+export { profileUpload, postUpload };
