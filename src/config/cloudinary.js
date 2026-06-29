@@ -1,5 +1,8 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -51,12 +54,12 @@ const uploadMedia = async (files) => {
   return Array.isArray(files) ? validUploads : validUploads[0] || null;
 };
 
-const destroyMedia = async (publicId) => {
+const destroyMedia = async (publicId, resourceType = "image") => {
   if (!publicId) return null;
 
   try {
     return await cloudinary.uploader.destroy(publicId, {
-      resource_type: "auto",
+      resource_type: resourceType,
     });
   } catch (error) {
     return null;

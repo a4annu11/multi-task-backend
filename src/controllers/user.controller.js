@@ -86,19 +86,20 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     );
 });
 
-
 export const getUserProfile = asyncHandler(async (req, res) => {
-  const currentUserId = req.user._id;
-  const profileId = req.query.profileId || currentUserId;
+  const currentUserId = new mongoose.Types.ObjectId(req.user._id);
+  const profileUserId = new mongoose.Types.ObjectId(
+    req.query.profileId || req.user._id,
+  );
 
   const profile = await UserProfile.aggregate([
     {
       $match: {
-        userId: new mongoose.Types.ObjectId(profileId),
+        userId: profileUserId,
       },
     },
 
-    // Populate User
+    // User Details
     {
       $lookup: {
         from: "users",
@@ -115,12 +116,11 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         as: "user",
       },
     },
-
     {
       $unwind: "$user",
     },
 
-    // Check Follow Status
+    // Current User -> Profile User
     {
       $lookup: {
         from: "follows",
@@ -133,16 +133,10 @@ export const getUserProfile = asyncHandler(async (req, res) => {
               $expr: {
                 $and: [
                   {
-                    $eq: [
-                      "$followerId",
-                      new mongoose.Types.ObjectId(currentUserId),
-                    ],
+                    $eq: ["$followerId", currentUserId],
                   },
                   {
-                    $eq: [
-                      "$followingId",
-                      "$$profileUserId",
-                    ],
+                    $eq: ["$followingId", "$$profileUserId"],
                   },
                 ],
               },
@@ -151,32 +145,79 @@ export const getUserProfile = asyncHandler(async (req, res) => {
           {
             $project: {
               status: 1,
-              _id: 0,
             },
           },
         ],
-        as: "follow",
+        as: "following",
       },
     },
 
-    // Add Follow Status
+    // Profile User -> Current User
+    {
+      $lookup: {
+        from: "follows",
+        let: {
+          profileUserId: "$userId",
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  {
+                    $eq: ["$followerId", "$$profileUserId"],
+                  },
+                  {
+                    $eq: ["$followingId", currentUserId],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+        as: "follower",
+      },
+    },
+
     {
       $addFields: {
         followStatus: {
-          $ifNull: [
+          $first: "$following.status",
+        },
+
+        isFollowing: {
+          $eq: [
             {
-              $arrayElemAt: ["$follow.status", 0],
+              $first: "$following.status",
             },
-            null,
+            "accepted",
+          ],
+        },
+
+        isPending: {
+          $eq: [
+            {
+              $first: "$following.status",
+            },
+            "pending",
+          ],
+        },
+
+        isFollower: {
+          $gt: [
+            {
+              $size: "$follower",
+            },
+            0,
           ],
         },
       },
     },
 
-    // Remove follow array
     {
       $project: {
-        follow: 0,
+        following: 0,
+        follower: 0,
       },
     },
   ]);
@@ -185,13 +226,11 @@ export const getUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User profile not found");
   }
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      profile[0],
-      "User profile fetched successfully"
-    )
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, profile[0], "User profile fetched successfully"),
+    );
 });
 
 export const followUnfollowUser = asyncHandler(async (req, res) => {
